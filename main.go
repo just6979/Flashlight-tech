@@ -20,59 +20,58 @@ func main() {
 	mux.HandleFunc("/", baseHandler)
 	//mux.HandleFunc("/students", baseHandler)
 
-	fmt.Printf("Starting server at http://localhost:%v", port)
+	log.Printf("Starting server at http://localhost:%v\n", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("localhost:%v", port), mux))
-	fmt.Println("Exiting server")
+	log.Println("Exiting server")
 }
 
 func baseHandler(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
+	var responseBytes []byte
 
 	switch method {
 	case "GET":
-		fmt.Printf("Handling GET request for %v\n", r.URL)
-		listStudents(w)
+		log.Printf("GET request for %v\n", r.URL)
+		responseBytes = listStudents()
 	case "POST":
-		println("Handling POST request")
-		addStudent(w, r)
+		log.Printf("POST request for %v\n", r.URL)
+		responseBytes = addStudent(r)
 	case "PUT":
-		println("Handling PUT request")
-		updateStudent(w, r)
+		log.Printf("PUT request for %v\n", r.URL)
+		responseBytes = updateStudent(r)
 	case "DELETE":
-		println("Handling DELETE request")
-		deleteStudent(w, r)
+		log.Printf("DELETE request for %v\n", r.URL)
+		responseBytes = deleteStudent(r)
 	default:
-		println("Handling unknown request")
-		w.Write([]byte(fmt.Sprintf("{error: {msg: 'Unhandled HTTP request', value: '%v'}}", method)))
+		log.Printf("Unhandled request for %v\n", r.URL)
+		responseBytes = fmt.Appendf(nil, "{error: {msg: 'Unhandled HTTP request', value: '%v'}}", method)
 	}
+
+	w.Write(responseBytes)
 }
 
-func listStudents(w http.ResponseWriter) {
-
+func listStudents() []byte {
 	students := fetchStudents()
 	fmt.Printf("Students List: %+v\n", students)
 
 	jsonResponse, err := json.Marshal(students)
 	if err != nil {
-		println("Unable to marshall to JSON")
-		response := "{}"
-		println(response)
-		w.Write([]byte(response))
-		return
+		log.Println("Unable to marshall to JSON")
+		jsonResponse = []byte("{}")
 	}
-	fmt.Printf("Response: %v\n", string(jsonResponse))
-	w.Write(jsonResponse)
+	log.Printf("Response: %v\n", string(jsonResponse))
+	return jsonResponse
 }
 
-func addStudent(w http.ResponseWriter, r *http.Request) {
+func addStudent(r *http.Request) []byte {
 	panic("unimplemented")
 }
 
-func updateStudent(w http.ResponseWriter, r *http.Request) {
+func updateStudent(r *http.Request) []byte {
 	panic("unimplemented")
 }
 
-func deleteStudent(w http.ResponseWriter, r *http.Request) {
+func deleteStudent(r *http.Request) []byte {
 	panic("unimplemented")
 }
 
