@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 type Student struct {
-	Id    int
-	Name  string
-	Grade int
+	ID    int    `json:"id"`
+	Name  string `json:"name"`
+	Grade int    `json:"grade"`
 }
 
 func main() {
@@ -28,8 +29,11 @@ func main() {
 	log.Println("Exiting server")
 }
 
+// request handlers
+
 func listHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("GET request for %v\n", r.URL)
+
 	students := fetchStudents()
 	log.Printf("Students List: %+v\n", students)
 
@@ -44,24 +48,76 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 
 func addHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("POST request for %v\n", r.URL)
-	panic("unimplemented")
+
+	var newStudent Student
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&newStudent)
+	if err != nil {
+		panic(err)
+	}
+	addStudent(newStudent)
+
+	responseData := map[string]string{"added": fmt.Sprint(newStudent)}
+	jsonResponse, _ := json.Marshal(responseData)
+	log.Printf("Response: %v\n", string(jsonResponse))
+	w.Write(jsonResponse)
 }
 
 func updateHandler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("PUT request for %v\n", r.URL)
-	panic("unimplemented")
+	log.Printf("POST request for %v\n", r.URL)
+
+	ID, _ := strconv.Atoi(r.URL.Query().Get("id"))
+
+	var updatedStudent Student
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&updatedStudent)
+	if err != nil {
+		panic(err)
+	}
+	updateStudent(ID, updatedStudent)
+
+	responseData := map[string]string{"updated": fmt.Sprint(updatedStudent)}
+	jsonResponse, _ := json.Marshal(responseData)
+	log.Printf("Response: %v\n", string(jsonResponse))
+	w.Write(jsonResponse)
 }
 
 func deleteHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("DELETE request for %v\n", r.URL)
-	panic("unimplemented")
+
+	ID, _ := strconv.Atoi(r.URL.Query().Get("id"))
+	oldStudent := deleteStudent(ID)
+
+	responseData := map[string]string{"deleted": fmt.Sprint(oldStudent)}
+	jsonResponse, _ := json.Marshal(responseData)
+	log.Printf("Response: %v\n", string(jsonResponse))
+	w.Write(jsonResponse)
 }
+
+// data handlers
 
 func fetchStudents() []Student {
 	var students []Student
 	students = append(students, Student{1, "Alice", 100})
 	students = append(students, Student{2, "Bob", 95})
 	return students
+}
+
+func addStudent(newStudent Student) Student {
+	log.Printf("Adding new student, name: '%v', grade: '%v'\n", newStudent.Name, newStudent.Grade)
+	return newStudent
+}
+
+func updateStudent(ID int, updatedStudent Student) Student {
+	log.Printf("Updating student: %v, name: '%v', grade: '%v'\n", ID, updatedStudent.Name, updatedStudent.Grade)
+	updatedStudent.ID = ID
+	return updatedStudent
+}
+
+func deleteStudent(ID int) Student {
+	oldStudent := Student{ID, "Foo", 90}
+	log.Printf("Deleting student: %v, name: '%v', grade: '%v'\n", ID, oldStudent.Name, oldStudent.Grade)
+	return oldStudent
 }
 
 /*
