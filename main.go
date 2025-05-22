@@ -104,7 +104,7 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 func deleteHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("DELETE request for %v\n", r.URL)
 
-	ID, _ := strconv.Atoi(r.URL.Query().Get("id"))
+	ID, _ := strconv.Atoi(r.PathValue("id"))
 	oldStudent := deleteStudent(ID)
 
 	responseData := map[string]string{"deleted": fmt.Sprint(oldStudent)}
@@ -151,6 +151,7 @@ func addStudent(newStudent Student) Student {
 	return newStudent
 }
 
+// TODO
 func updateStudent(ID int, updateStudent Student) Student {
 	existingStudent := tempStudents[ID]
 	log.Printf("Updating student: %v, name: '%v', grade: '%v'\n", ID, existingStudent.Name, existingStudent.Grade)
@@ -166,12 +167,42 @@ func updateStudent(ID int, updateStudent Student) Student {
 }
 
 func deleteStudent(ID int) Student {
-	log.Printf("Deleting student: %v", ID)
+	var deletedStudent Student
 
-	deletedStudent := tempStudents[ID]
-	//delete(students, ID)
+	log.Printf("Checking for student to delete: id %v", ID)
+	const findStatement = "SELECT id, name, grade FROM students WHERE id = $1;"
+	row := db.QueryRow(findStatement, ID)
+	err := row.Scan(&deletedStudent.ID, &deletedStudent.Name, &deletedStudent.Grade)
+	if err == sql.ErrNoRows {
+		log.Printf("Unable to find Student: id %v", ID)
+		return Student{}
+	} else if err != nil {
+		log.Printf("Unable to map Row to Student: %v\n", err)
+		return Student{}
+	}
 
-	log.Printf("Deleted student: %v, name: '%v', grade: '%v'\n", ID, deletedStudent.Name, deletedStudent.Grade)
+	log.Printf("Deleting student: id %v, name %v, grade %v",
+		deletedStudent.ID, deletedStudent.Name, deletedStudent.Grade)
+
+	const deleteStatement = `DELETE FROM students WHERE id = $1;`
+	res, err := db.Exec(deleteStatement, ID)
+	if err != nil {
+		log.Printf("Error deleting Student: id %v: %v", ID, err)
+		return Student{}
+	}
+
+	count, err := res.RowsAffected()
+	if err != nil {
+		log.Printf("Error checking deletion: %v", err)
+		return Student{}
+	}
+	if count == 0 {
+		log.Println("Error deleting student, no rows deleted.")
+		return Student{}
+	}
+
+	log.Printf("Deleted student: id %v, name '%v', grade '%v'\n",
+		deletedStudent.ID, deletedStudent.Name, deletedStudent.Grade)
 
 	return deletedStudent
 }
