@@ -74,7 +74,7 @@ func addHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	addStudent(newStudent)
+	newStudent = addStudent(newStudent)
 
 	responseData := map[string]string{"added": fmt.Sprint(newStudent)}
 	jsonResponse, _ := json.Marshal(responseData)
@@ -141,8 +141,13 @@ func fetchStudents() []Student {
 func addStudent(newStudent Student) Student {
 	log.Printf("Adding new student, name: '%v', grade: '%v'\n", newStudent.Name, newStudent.Grade)
 
-	tempStudents[len(tempStudents)+1] = newStudent
-
+	addStatement := `insert into students (name, grade) values ($1, $2) returning id`
+	id := 0
+	err := db.QueryRow(addStatement, newStudent.Name, newStudent.Grade).Scan(&id)
+	if err != nil {
+		log.Printf("Error adding Student: %v", err)
+	}
+	newStudent.ID = id
 	return newStudent
 }
 
