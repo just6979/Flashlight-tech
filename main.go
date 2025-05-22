@@ -18,11 +18,9 @@ type Student struct {
 }
 
 // temp data
-type StudentList map[int]Student
-
-var students = StudentList{
-	0: Student{0, "Alice", 100},
-	1: Student{1, "Bob", 95},
+var tempStudents = []Student{
+	0: {0, "Alice", 100},
+	1: {1, "Bob", 95},
 }
 
 var db *sql.DB
@@ -35,11 +33,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v\n", err)
 	}
-	err = db.Ping()
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println("Successfully connected to PostgreSQL")
+	defer db.Close()
 
 	port := 8080
 	mux := http.NewServeMux()
@@ -51,14 +45,7 @@ func main() {
 	mux.HandleFunc("DELETE /students/{id}", deleteHandler)
 
 	log.Printf("Starting server at http://localhost:%v\n", port)
-	err = http.ListenAndServe(fmt.Sprintf("localhost:%v", port), mux)
-	if err != nil {
-		log.Printf("Error in http server: %v", err)
-	}
-	log.Println("Exiting server")
-
-	log.Println("CLosing database connection")
-	db.Close()
+	log.Fatal(http.ListenAndServe(fmt.Sprintf("localhost:%v", port), mux))
 }
 
 // request handlers
@@ -128,7 +115,9 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 
 // data handlers
 
-func fetchStudents() StudentList {
+func fetchStudents() []Student {
+	students := []Student{}
+
 	rows, err := db.Query("select * from students")
 	if err != nil {
 		log.Printf("Query failed: %v\n", err)
@@ -136,16 +125,14 @@ func fetchStudents() StudentList {
 	defer rows.Close()
 
 	for rows.Next() {
-		var (
-			id    int
-			name  string
-			grade int
-		)
-		if err := rows.Scan(&id, &name, &grade); err != nil {
-			log.Fatal(err)
+		var nextStudent Student
+		err := rows.Scan(&nextStudent.ID, &nextStudent.Name, &nextStudent.Grade)
+		if err != nil {
+			log.Printf("Unable to map Row to Student: %v\n", err)
+			continue
 		}
-		log.Printf("id %d, name is %s, grade is %d\n", id, name, grade)
-
+		log.Printf("id %d, name is %s, grade is %d\n", nextStudent.ID, nextStudent.Name, nextStudent.Grade)
+		students = append(students, nextStudent)
 	}
 
 	return students
@@ -154,19 +141,19 @@ func fetchStudents() StudentList {
 func addStudent(newStudent Student) Student {
 	log.Printf("Adding new student, name: '%v', grade: '%v'\n", newStudent.Name, newStudent.Grade)
 
-	students[len(students)+1] = newStudent
+	tempStudents[len(tempStudents)+1] = newStudent
 
 	return newStudent
 }
 
 func updateStudent(ID int, updateStudent Student) Student {
-	existingStudent := students[ID]
+	existingStudent := tempStudents[ID]
 	log.Printf("Updating student: %v, name: '%v', grade: '%v'\n", ID, existingStudent.Name, existingStudent.Grade)
 
 	existingStudent.Name = updateStudent.Name
 	existingStudent.Grade = updateStudent.Grade
 
-	students[ID] = existingStudent
+	tempStudents[ID] = existingStudent
 
 	log.Printf("Updated student: %v, name: '%v', grade: '%v'\n", ID, existingStudent.Name, existingStudent.Grade)
 
@@ -176,8 +163,8 @@ func updateStudent(ID int, updateStudent Student) Student {
 func deleteStudent(ID int) Student {
 	log.Printf("Deleting student: %v", ID)
 
-	deletedStudent := students[ID]
-	delete(students, ID)
+	deletedStudent := tempStudents[ID]
+	//delete(students, ID)
 
 	log.Printf("Deleted student: %v, name: '%v', grade: '%v'\n", ID, deletedStudent.Name, deletedStudent.Grade)
 
