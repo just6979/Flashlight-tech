@@ -17,12 +17,6 @@ type Student struct {
 	Grade int    `json:"grade"`
 }
 
-// temp data
-var tempStudents = []Student{
-	0: {0, "Alice", 100},
-	1: {1, "Bob", 95},
-}
-
 var db *sql.DB
 
 func main() {
@@ -53,7 +47,7 @@ func main() {
 func listHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("GET request for %v\n", r.URL)
 
-	students := fetchStudents()
+	students := fetchAllStudents()
 	log.Printf("Students List: %+v\n", students)
 
 	jsonResponse, err := json.Marshal(students)
@@ -85,7 +79,7 @@ func addHandler(w http.ResponseWriter, r *http.Request) {
 func updateHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("POST request for %v\n", r.URL)
 
-	ID, _ := strconv.Atoi(r.URL.Query().Get("id"))
+	ID, _ := strconv.Atoi(r.PathValue("id"))
 
 	var updatedStudent Student
 	decoder := json.NewDecoder(r.Body)
@@ -93,7 +87,7 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	updateStudent(ID, updatedStudent)
+	updatedStudent = updateStudent(ID, updatedStudent)
 
 	responseData := map[string]string{"updated": fmt.Sprint(updatedStudent)}
 	jsonResponse, _ := json.Marshal(responseData)
@@ -115,7 +109,30 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 
 // data handlers
 
-func fetchStudents() []Student {
+func fetchStudent(ID int) (bool, Student) {
+	student := Student{}
+	isFound := true
+
+	log.Printf("Fetching student: id %v", ID)
+
+	const findStatement = "SELECT id, name, grade FROM students WHERE id = $1;"
+	row := db.QueryRow(findStatement, ID)
+	err := row.Scan(&student.ID, &student.Name, &student.Grade)
+	if err == sql.ErrNoRows {
+		log.Printf("Unable to find Student: id %v", ID)
+		isFound = false
+	} else if err != nil {
+		log.Printf("Unable to map Row to Student: %v", err)
+		isFound = false
+	}
+
+	log.Printf("Found student: id %v, name: '%v', grade: '%v'",
+		student.ID, student.Name, student.Grade)
+
+	return isFound, student
+}
+
+func fetchAllStudents() []Student {
 	students := []Student{}
 
 	rows, err := db.Query("select * from students")
@@ -151,33 +168,47 @@ func addStudent(newStudent Student) Student {
 	return newStudent
 }
 
-// TODO
-func updateStudent(ID int, updateStudent Student) Student {
-	existingStudent := tempStudents[ID]
-	log.Printf("Updating student: %v, name: '%v', grade: '%v'\n", ID, existingStudent.Name, existingStudent.Grade)
+func updateStudent(ID int, updatedStudent Student) Student {
+	log.Printf("Trying to update student: id %v", ID)
+	isFound, existingStudent := fetchStudent(ID)
+	if !isFound {
+		log.Printf("Unable to find student: id %v", ID)
+		return Student{}
+	}
 
-	existingStudent.Name = updateStudent.Name
-	existingStudent.Grade = updateStudent.Grade
+	updatedStudent.ID = ID
+	log.Printf("Existing student: id %v, name: '%v', grade: '%v'",
+		existingStudent.ID, existingStudent.Name, existingStudent.Grade)
+	log.Printf("Updated student info: name: '%v', grade: '%v'",
+		existingStudent.Name, existingStudent.Grade)
 
-	tempStudents[ID] = existingStudent
+	const addStatement = `UPDATE students SET name = $2, grade = $3 WHERE id = $1`
+	res, err := db.Exec(addStatement, ID, updatedStudent.Name, updatedStudent.Grade)
+	if err != nil {
+		log.Printf("Error updating Student: id %v: %v", ID, err)
+		return Student{}
+	}
+	count, err := res.RowsAffected()
+	if err != nil {
+		log.Printf("Error checking update: %v", err)
+		return Student{}
+	}
+	if count == 0 {
+		log.Println("Error updating student, no rows changed.")
+		return Student{}
+	}
 
-	log.Printf("Updated student: %v, name: '%v', grade: '%v'\n", ID, existingStudent.Name, existingStudent.Grade)
+	log.Printf("Updated student: %v, name: '%v', grade: '%v'",
+		updatedStudent.ID, updatedStudent.Name, updatedStudent.Grade)
 
-	return existingStudent
+	return updatedStudent
 }
 
 func deleteStudent(ID int) Student {
-	var deletedStudent Student
-
-	log.Printf("Checking for student to delete: id %v", ID)
-	const findStatement = "SELECT id, name, grade FROM students WHERE id = $1;"
-	row := db.QueryRow(findStatement, ID)
-	err := row.Scan(&deletedStudent.ID, &deletedStudent.Name, &deletedStudent.Grade)
-	if err == sql.ErrNoRows {
-		log.Printf("Unable to find Student: id %v", ID)
-		return Student{}
-	} else if err != nil {
-		log.Printf("Unable to map Row to Student: %v\n", err)
+	log.Printf("Trying to delete student: id %v", ID)
+	isFound, deletedStudent := fetchStudent(ID)
+	if !isFound {
+		log.Printf("Unable to find student: id %v", ID)
 		return Student{}
 	}
 
@@ -190,7 +221,6 @@ func deleteStudent(ID int) Student {
 		log.Printf("Error deleting Student: id %v: %v", ID, err)
 		return Student{}
 	}
-
 	count, err := res.RowsAffected()
 	if err != nil {
 		log.Printf("Error checking deletion: %v", err)
