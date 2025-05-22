@@ -1,8 +1,10 @@
-create table if not exists students (
-    id serial primary key,
-    name varchar(256) not null,
-    grade integer not null
+DROP TABLE students;
+
+CREATE TABLE IF NOT EXISTS students (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(256) NOT NULL,
+    grade INTEGER NOT NULL
 );
 
-insert into students (name, grade) values('Alice', 90);
-insert into students (name, grade) values('Bob', 95);
+INSERT INTO students (name, grade) VALUES('Alice', 90);
+INSERT INTO students (name, grade) VALUES('Bob', 95);

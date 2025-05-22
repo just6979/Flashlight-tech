@@ -25,11 +25,11 @@ func main() {
 	log.Printf("Connecting to database %v", dbConnStr)
 	db, err = sql.Open("postgres", dbConnStr)
 	if err != nil {
-		log.Fatalf("Unable to connect to database: %v\n", err)
+		log.Fatalf("Unable to connect to database: %v", err)
 	}
 	defer db.Close()
 
-	port := 8080
+	host := "localhost:8080"
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/{$}", listHandler)
@@ -38,29 +38,29 @@ func main() {
 	mux.HandleFunc("PUT /students/{id}", updateHandler)
 	mux.HandleFunc("DELETE /students/{id}", deleteHandler)
 
-	log.Printf("Starting server at http://localhost:%v\n", port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf("localhost:%v", port), mux))
+	log.Printf("Starting server at http://%v", host)
+	log.Fatal(http.ListenAndServe(host, mux))
 }
 
 // request handlers
 
 func listHandler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("GET request for %v\n", r.URL)
+	log.Printf("GET request for %v", r.URL)
 
 	students := fetchAllStudents()
-	log.Printf("Students List: %+v\n", students)
+	log.Printf("Students List: %+v", students)
 
 	jsonResponse, err := json.Marshal(students)
 	if err != nil {
 		log.Println("Unable to marshall to JSON")
 		jsonResponse = []byte("{}")
 	}
-	log.Printf("Response: %v\n", string(jsonResponse))
+	log.Printf("Response: %v", string(jsonResponse))
 	w.Write(jsonResponse)
 }
 
 func addHandler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("POST request for %v\n", r.URL)
+	log.Printf("POST request for %v", r.URL)
 
 	var newStudent Student
 	decoder := json.NewDecoder(r.Body)
@@ -72,12 +72,12 @@ func addHandler(w http.ResponseWriter, r *http.Request) {
 
 	responseData := map[string]string{"added": fmt.Sprint(newStudent)}
 	jsonResponse, _ := json.Marshal(responseData)
-	log.Printf("Response: %v\n", string(jsonResponse))
+	log.Printf("Response: %v", string(jsonResponse))
 	w.Write(jsonResponse)
 }
 
 func updateHandler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("POST request for %v\n", r.URL)
+	log.Printf("POST request for %v", r.URL)
 
 	ID, _ := strconv.Atoi(r.PathValue("id"))
 
@@ -91,19 +91,19 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 
 	responseData := map[string]string{"updated": fmt.Sprint(updatedStudent)}
 	jsonResponse, _ := json.Marshal(responseData)
-	log.Printf("Response: %v\n", string(jsonResponse))
+	log.Printf("Response: %v", string(jsonResponse))
 	w.Write(jsonResponse)
 }
 
 func deleteHandler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("DELETE request for %v\n", r.URL)
+	log.Printf("DELETE request for %v", r.URL)
 
 	ID, _ := strconv.Atoi(r.PathValue("id"))
 	oldStudent := deleteStudent(ID)
 
 	responseData := map[string]string{"deleted": fmt.Sprint(oldStudent)}
 	jsonResponse, _ := json.Marshal(responseData)
-	log.Printf("Response: %v\n", string(jsonResponse))
+	log.Printf("Response: %v", string(jsonResponse))
 	w.Write(jsonResponse)
 }
 
@@ -135,9 +135,12 @@ func fetchStudent(ID int) (bool, Student) {
 func fetchAllStudents() []Student {
 	students := []Student{}
 
-	rows, err := db.Query("select * from students")
+	log.Println("Fetching all students")
+
+	const selectStatement = "SELECT id, name, grade FROM students;"
+	rows, err := db.Query(selectStatement)
 	if err != nil {
-		log.Printf("Query failed: %v\n", err)
+		log.Printf("Query failed: %v", err)
 	}
 	defer rows.Close()
 
@@ -145,10 +148,11 @@ func fetchAllStudents() []Student {
 		var nextStudent Student
 		err := rows.Scan(&nextStudent.ID, &nextStudent.Name, &nextStudent.Grade)
 		if err != nil {
-			log.Printf("Unable to map Row to Student: %v\n", err)
+			log.Printf("Unable to map Row to Student: %v", err)
 			continue
 		}
-		log.Printf("id %d, name is %s, grade is %d\n", nextStudent.ID, nextStudent.Name, nextStudent.Grade)
+		log.Printf("id %d, name is %s, grade is %d",
+			nextStudent.ID, nextStudent.Name, nextStudent.Grade)
 		students = append(students, nextStudent)
 	}
 
@@ -156,9 +160,10 @@ func fetchAllStudents() []Student {
 }
 
 func addStudent(newStudent Student) Student {
-	log.Printf("Adding new student, name: '%v', grade: '%v'\n", newStudent.Name, newStudent.Grade)
+	log.Printf("Adding new student, name: '%v', grade: '%v'",
+		newStudent.Name, newStudent.Grade)
 
-	addStatement := `insert into students (name, grade) values ($1, $2) returning id`
+	const addStatement = `INSERT INTO students (name, grade) VALUES ($1, $2) RETURNING id`
 	id := 0
 	err := db.QueryRow(addStatement, newStudent.Name, newStudent.Grade).Scan(&id)
 	if err != nil {
@@ -231,7 +236,7 @@ func deleteStudent(ID int) Student {
 		return Student{}
 	}
 
-	log.Printf("Deleted student: id %v, name '%v', grade '%v'\n",
+	log.Printf("Deleted student: id %v, name '%v', grade '%v'",
 		deletedStudent.ID, deletedStudent.Name, deletedStudent.Grade)
 
 	return deletedStudent
