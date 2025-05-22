@@ -14,7 +14,14 @@ type Student struct {
 	Grade int    `json:"grade"`
 }
 
+// temp data
+var students []Student
+
 func main() {
+	// temp data
+	students = append(students, Student{1, "Alice", 100})
+	students = append(students, Student{2, "Bob", 95})
+
 	port := 8080
 	mux := http.NewServeMux()
 
@@ -97,27 +104,50 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 // data handlers
 
 func fetchStudents() []Student {
-	var students []Student
-	students = append(students, Student{1, "Alice", 100})
-	students = append(students, Student{2, "Bob", 95})
 	return students
 }
 
 func addStudent(newStudent Student) Student {
 	log.Printf("Adding new student, name: '%v', grade: '%v'\n", newStudent.Name, newStudent.Grade)
+	students = append(students, newStudent)
 	return newStudent
 }
 
-func updateStudent(ID int, updatedStudent Student) Student {
-	log.Printf("Updating student: %v, name: '%v', grade: '%v'\n", ID, updatedStudent.Name, updatedStudent.Grade)
-	updatedStudent.ID = ID
-	return updatedStudent
+func updateStudent(ID int, updateStudent Student) Student {
+	log.Printf("Updating student: %v, name: '%v', grade: '%v'\n", ID, updateStudent.Name, updateStudent.Grade)
+	var existingIndex int
+	for i := 0; i < len(students); i++ {
+		if students[i].ID == ID {
+			existingIndex = i
+			break
+		}
+	}
+
+	existingStudent := students[existingIndex]
+	existingStudent.Name = updateStudent.Name
+	existingStudent.Grade = updateStudent.Grade
+
+	students = append(students[:existingIndex], existingStudent, students[existingIndex+1])
+
+	log.Printf("Updated student: %v, name: '%v', grade: '%v'\n", ID, existingStudent.Name, existingStudent.Grade)
+	return existingStudent
 }
 
 func deleteStudent(ID int) Student {
-	oldStudent := Student{ID, "Foo", 90}
-	log.Printf("Deleting student: %v, name: '%v', grade: '%v'\n", ID, oldStudent.Name, oldStudent.Grade)
-	return oldStudent
+	var deletedIndex int
+	var deletedStudent Student
+	for i := 0; i < len(students); i++ {
+		if students[i].ID == ID {
+			deletedIndex = i
+			break
+		}
+	}
+	deletedStudent = students[deletedIndex]
+
+	students = append(students[:deletedIndex], students[deletedIndex+1])
+
+	log.Printf("Deleting student: %v, name: '%v', grade: '%v'\n", ID, deletedStudent.Name, deletedStudent.Grade)
+	return deletedStudent
 }
 
 /*
