@@ -1,14 +1,18 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+
+	_ "github.com/lib/pq"
 )
 
 type Student struct {
+	ID    int    `json:"id"`
 	Name  string `json:"name"`
 	Grade int    `json:"grade"`
 }
@@ -17,11 +21,26 @@ type Student struct {
 type StudentList map[int]Student
 
 var students = StudentList{
-	0: Student{"Alice", 100},
-	1: Student{"Bob", 95},
+	0: Student{0, "Alice", 100},
+	1: Student{1, "Bob", 95},
 }
 
+var db *sql.DB
+
 func main() {
+	var err error
+	dbConnStr := "postgres://postgres:@localhost/postgres?sslmode=disable"
+	log.Printf("Connecting to database %v", dbConnStr)
+	db, err = sql.Open("postgres", dbConnStr)
+	if err != nil {
+		log.Fatalf("Unable to connect to database: %v\n", err)
+	}
+	err = db.Ping()
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("Successfully connected to PostgreSQL")
+
 	port := 8080
 	mux := http.NewServeMux()
 
@@ -32,8 +51,14 @@ func main() {
 	mux.HandleFunc("DELETE /students/{id}", deleteHandler)
 
 	log.Printf("Starting server at http://localhost:%v\n", port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf("localhost:%v", port), mux))
+	err = http.ListenAndServe(fmt.Sprintf("localhost:%v", port), mux)
+	if err != nil {
+		log.Printf("Error in http server: %v", err)
+	}
 	log.Println("Exiting server")
+
+	log.Println("CLosing database connection")
+	db.Close()
 }
 
 // request handlers
@@ -104,6 +129,25 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 // data handlers
 
 func fetchStudents() StudentList {
+	rows, err := db.Query("select * from students")
+	if err != nil {
+		log.Printf("Query failed: %v\n", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			id    int
+			name  string
+			grade int
+		)
+		if err := rows.Scan(&id, &name, &grade); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("id %d, name is %s, grade is %d\n", id, name, grade)
+
+	}
+
 	return students
 }
 
