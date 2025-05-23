@@ -16,3 +16,17 @@ Back-end: Implement a RESTful API with CRUD operations for managing students.
   * Add a new student.
    * Update an existing student.
   * Delete a student.
+
+
+TODO:
+* API spec
+* Backend Automated tests
+  * Github Actions
+    * docker run postgres
+    * db init script
+    * go run
+    * postman cli
+* More error handling
+* Auth
+* Automated deployment
+* Monitoring & Observability
