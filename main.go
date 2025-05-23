@@ -44,6 +44,7 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 		jsonResponse = []byte("{}")
 	}
 	log.Printf("Response: %v", string(jsonResponse))
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write(jsonResponse)
 }
 
@@ -61,6 +62,7 @@ func addHandler(w http.ResponseWriter, r *http.Request) {
 	responseData := map[string]string{"added": fmt.Sprint(newStudent)}
 	jsonResponse, _ := json.Marshal(responseData)
 	log.Printf("Response: %v", string(jsonResponse))
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write(jsonResponse)
 }
 
@@ -80,6 +82,7 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 	responseData := map[string]string{"updated": fmt.Sprint(updatedStudent)}
 	jsonResponse, _ := json.Marshal(responseData)
 	log.Printf("Response: %v", string(jsonResponse))
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write(jsonResponse)
 }
 
@@ -92,5 +95,6 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 	responseData := map[string]string{"deleted": fmt.Sprint(oldStudent)}
 	jsonResponse, _ := json.Marshal(responseData)
 	log.Printf("Response: %v", string(jsonResponse))
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write(jsonResponse)
 }
